@@ -1,24 +1,29 @@
 FROM runpod/base:0.6.2-cuda12.1.0
 
-# Install Python libraries
+# System deps
+RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
+
+# Python deps
 RUN pip install --no-cache-dir \
-    vllm \
+    vllm==0.6.3 \
+    runpod \
     transformers \
     accelerate \
-    huggingface_hub
+    huggingface_hub \
+    Pillow
 
-# Download the model DURING build (this is the key optimization)
-RUN python - <<EOF
+# Download model at BUILD time (baked into image)
+ARG HF_TOKEN
+RUN python -c "
 from huggingface_hub import snapshot_download
 snapshot_download(
-    repo_id="Qwen/Qwen2.5-VL-7B-Instruct",
-    local_dir="/model",
-    local_dir_use_symlinks=False
+    'Qwen/Qwen2.5-VL-7B-Instruct',
+    local_dir='/model',
+    token='${HF_TOKEN}'
 )
-EOF
+"
 
-# Copy your inference code
+# Copy handler
 COPY handler.py /handler.py
 
-# Start the server
 CMD ["python", "-u", "/handler.py"]
