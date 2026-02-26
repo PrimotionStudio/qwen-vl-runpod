@@ -12,16 +12,9 @@ RUN pip install --no-cache-dir \
     huggingface_hub \
     Pillow
 
-# Download model at BUILD time (baked into image)
+# Download model at BUILD time
 ARG HF_TOKEN
-RUN python -c "
-from huggingface_hub import snapshot_download
-snapshot_download(
-    'Qwen/Qwen2.5-VL-7B-Instruct',
-    local_dir='/model',
-    token='${HF_TOKEN}'
-)
-"
+RUN python -c "from huggingface_hub import snapshot_download; snapshot_download('Qwen/Qwen2.5-VL-7B-Instruct', local_dir='/model', token='$HF_TOKEN')"
 
 # Copy handler
 COPY handler.py /handler.py
