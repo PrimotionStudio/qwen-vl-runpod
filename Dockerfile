@@ -16,7 +16,11 @@ RUN python3.11 -m pip install --no-cache-dir \
 ARG HF_TOKEN
 RUN python3.11 -c "from huggingface_hub import snapshot_download; snapshot_download('Qwen/Qwen2.5-VL-7B-Instruct', local_dir='/model', token='${HF_TOKEN}')"
 # Patch conflicting rope_scaling config
-RUN python3.11 -c "import json; path='/model/config.json'; cfg=json.load(open(path)); rope=cfg.get('text_config',{}).get('rope_scaling',{}); rope.pop('type',None); json.dump(cfg,open(path,'w'),indent=2)"
+RUN echo ">Config Before Patch"
+RUN cat /model/config.json
+RUN python3.11 -c "import json; path='/model/config.json'; cfg=json.load(open(path)); fix=lambda r: {k:v for k,v in r.items() if k!='type'} if isinstance(r,dict) and 'rope_type' in r and 'type' in r else r; cfg.update({k: fix(v) for k,v in cfg.items() if k=='rope_scaling'}); cfg.get('text_config',{}).update({k: fix(v) for k,v in cfg.get('text_config',{}).items() if k=='rope_scaling'}); json.dump(cfg,open(path,'w'),indent=2)"
+RUN echo ">Config After Patch"
+RUN cat /model/config.json
 # Copy handler
 COPY handler.py /handler.py
 CMD ["python3.11", "-u", "/handler.py"]
