@@ -10,6 +10,8 @@ RUN python3.11 -m pip install --no-cache-dir \
     transformers \
     accelerate \
     huggingface_hub \
+    openai \
+    httpx \
     Pillow
 
 # Download model at BUILD time
