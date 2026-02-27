@@ -8,6 +8,7 @@ RUN python3.11 -m pip install --no-cache-dir \
     transformers==4.57 \
     accelerate \
     huggingface_hub \
+    hf_transfer \
     openai \
     httpx \
     Pillow
