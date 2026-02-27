@@ -5,7 +5,7 @@ RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
 RUN python3.11 -m pip install --no-cache-dir \
     vllm==0.7.3 \
     runpod \
-    transformers \
+    transformers==4.57 \
     accelerate \
     huggingface_hub \
     openai \

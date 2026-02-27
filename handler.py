@@ -28,8 +28,6 @@ proc = subprocess.Popen(
         "8000",
         "--host",
         "0.0.0.0",
-        "--hf-overrides",
-        '{"text_config": {"rope_scaling": {"rope_type": "mrope", "mrope_section": [16, 24, 24]}}}',
     ]
 )
 
