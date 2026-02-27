@@ -1,23 +1,37 @@
-import runpod
-from openai import AsyncOpenAI
 import asyncio
 
 # vLLM OpenAI-compatible server runs as a subprocess
 import subprocess
 import time
+
 import httpx
+import runpod
+from openai import AsyncOpenAI
 
 # Start vLLM server on localhost
-proc = subprocess.Popen([
-    "python3.11", "-m", "vllm.entrypoints.openai.api_server",
-    "--model", "/model",
-    "--dtype", "bfloat16",
-    "--max-model-len", "8192",
-    "--gpu-memory-utilization", "0.90",
-    "--limit-mm-per-prompt", "image=5",
-    "--port", "8000",
-    "--host", "0.0.0.0",
-])
+proc = subprocess.Popen(
+    [
+        "python3.11",
+        "-m",
+        "vllm.entrypoints.openai.api_server",
+        "--model",
+        "/model",
+        "--dtype",
+        "bfloat16",
+        "--max-model-len",
+        "8192",
+        "--gpu-memory-utilization",
+        "0.90",
+        "--limit-mm-per-prompt",
+        "image=5",
+        "--port",
+        "8000",
+        "--host",
+        "0.0.0.0",
+        "--hf-overrides",
+        '{"text_config": {"rope_scaling": {"rope_type": "mrope", "mrope_section": [16, 24, 24]}}}',
+    ]
+)
 
 # Wait for server to be ready
 print("Waiting for vLLM server to start...")
@@ -38,6 +52,7 @@ client = AsyncOpenAI(
     base_url="http://localhost:8000/v1",
 )
 
+
 async def handler(job):
     job_input = job["input"]
 
@@ -55,14 +70,7 @@ async def handler(job):
         temperature=temperature,
     )
 
-    return {
-        "choices": [
-            {
-                "message": {
-                    "content": response.choices[0].message.content
-                }
-            }
-        ]
-    }
+    return {"choices": [{"message": {"content": response.choices[0].message.content}}]}
+
 
 runpod.serverless.start({"handler": handler})
