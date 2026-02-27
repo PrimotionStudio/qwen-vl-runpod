@@ -58,6 +58,8 @@ async def handler(job):
         return {"pong": True}
 
     messages = job_input.get("messages", [])
+    if not messages:
+        return {"error": "messages array is required and cannot be empty"}
     max_tokens = job_input.get("max_tokens", 512)
     temperature = job_input.get("temperature", 0.7)
 
