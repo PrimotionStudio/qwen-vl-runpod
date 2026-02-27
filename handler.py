@@ -1,45 +1,68 @@
 import runpod
-from vllm import LLM, SamplingParams
-from vllm.multimodal.utils import fetch_image
-import base64
-from io import BytesIO
+from openai import AsyncOpenAI
+import asyncio
 
-# Loaded ONCE on cold start — not per request
-llm = LLM(
-    model="/model",
-    dtype="bfloat16",
-    max_model_len=8192,
-    gpu_memory_utilization=0.90,
-    limit_mm_per_prompt={"image": 5},
+# vLLM OpenAI-compatible server runs as a subprocess
+import subprocess
+import time
+import httpx
+
+# Start vLLM server on localhost
+proc = subprocess.Popen([
+    "python3.11", "-m", "vllm.entrypoints.openai.api_server",
+    "--model", "/model",
+    "--dtype", "bfloat16",
+    "--max-model-len", "8192",
+    "--gpu-memory-utilization", "0.90",
+    "--limit-mm-per-prompt", "image=5",
+    "--port", "8000",
+    "--host", "0.0.0.0",
+])
+
+# Wait for server to be ready
+print("Waiting for vLLM server to start...")
+for _ in range(120):  # wait up to 2 minutes
+    try:
+        r = httpx.get("http://localhost:8000/health", timeout=2)
+        if r.status_code == 200:
+            print("vLLM server is ready!")
+            break
+    except Exception:
+        pass
+    time.sleep(1)
+else:
+    raise RuntimeError("vLLM server failed to start in time")
+
+client = AsyncOpenAI(
+    api_key="dummy",
+    base_url="http://localhost:8000/v1",
 )
 
-def handler(job):
+async def handler(job):
     job_input = job["input"]
 
-    # Optional keep-warm ping
     if job_input.get("ping"):
         return {"pong": True}
 
-    prompt = job_input.get("prompt", "Describe this image.")
-    image_b64 = job_input.get("image_base64")  # optional image
+    messages = job_input.get("messages", [])
+    max_tokens = job_input.get("max_tokens", 512)
+    temperature = job_input.get("temperature", 0.7)
 
-    messages = [{"role": "user", "content": []}]
+    response = await client.chat.completions.create(
+        model="/model",
+        messages=messages,
+        max_tokens=max_tokens,
+        temperature=temperature,
+    )
 
-    if image_b64:
-        image_bytes = base64.b64decode(image_b64)
-        messages[0]["content"].append({
-            "type": "image_url",
-            "image_url": {"url": f"data:image/jpeg;base64,{image_b64}"}
-        })
-
-    messages[0]["content"].append({"type": "text", "text": prompt})
-
-    from vllm.entrypoints.chat_utils import apply_chat_template
-    outputs = llm.chat(messages=messages, sampling_params=SamplingParams(
-        temperature=job_input.get("temperature", 0.7),
-        max_tokens=job_input.get("max_tokens", 512),
-    ))
-
-    return {"output": outputs[0].outputs[0].text}
+    return {
+        "choices": [
+            {
+                "message": {
+                    "content": response.choices[0].message.content
+                }
+            }
+        ]
+    }
 
 runpod.serverless.start({"handler": handler})
