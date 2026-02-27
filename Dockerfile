@@ -1,15 +1,17 @@
-FROM runpod/base:0.6.2-cuda12.1.0
+FROM runpod/base:0.6.2-cuda12.4.1
 
 # System deps
 RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
 
 # Python deps
 RUN python3.11 -m pip install --no-cache-dir \
-    vllm==0.6.3 \
+    vllm==0.7.3 \
     runpod \
     transformers \
     accelerate \
     huggingface_hub \
+    openai \
+    httpx \
     Pillow
 
 # Download model at BUILD time
